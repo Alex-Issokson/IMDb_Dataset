@@ -31,6 +31,9 @@ def main():
     # load the train and test data
     movie_data = pd.read_csv('movie_metadata.csv')
     cols = list(movie_data.columns)
+    
+    for col in cols:
+        print(col, movie_data[col].isna().sum())
 
     movie_data = movie_data[movie_data['director_name'].notna()]
     movie_data = movie_data[movie_data['actor_1_name'].notna()]
@@ -40,9 +43,11 @@ def main():
     movie_data = movie_data[movie_data['language'].notna()]
     movie_data = movie_data[movie_data['country'].notna()]
     movie_data['content_rating'].fillna("Not Rated", inplace=True)
-    movie_data['aspect_ratio'].fillna((movie_data['aspect_ratio'].mode()), inplace=True)
+    movie_data['aspect_ratio'].fillna((movie_data['aspect_ratio'].mode()[0]), inplace=True)
     movie_data['duration'].fillna((movie_data['duration'].mean()), inplace=True)
     
+    for col in cols:
+        print(col, movie_data[col].isna().sum())
     
     movie_data["genres"] = movie_data["genres"].str.split('|')
     
@@ -59,6 +64,7 @@ def main():
     movie_data = pd.concat([movie_data, content_dummies], axis=1)
     color_dummies = pd.get_dummies(movie_data.color)
     movie_data = pd.concat([movie_data, color_dummies], axis=1)
+    movie_data = movie_data.rename(columns={" Black and White":"Black and White"})
     print(movie_data.columns)
     
     features = movie_data[['duration',
@@ -70,7 +76,7 @@ def main():
        'Musical', 'Mystery', 'News', 'Romance', 'Sci-Fi', 'Short', 'Sport',
        'Thriller', 'War', 'Western', 'Approved', 'G', 'GP', 'M', 'NC-17',
        'Not Rated', 'PG', 'PG-13', 'Passed', 'R', 'TV-14', 'TV-G', 'TV-PG',
-       'Unrated', 'X', ' Black and White', 'Color']]
+       'Unrated', 'X', 'Black and White', 'Color']]
     
     labels = movie_data["imdb_score"]
     
