@@ -1,0 +1,222 @@
+import argparse
+import numpy as np
+import pandas as pd
+from sklearn import metrics
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
+from sklearn.model_selection import ShuffleSplit
+from sklearn.model_selection import GridSearchCV
+from sklearn.neighbors import KNeighborsClassifier
+import time
+
+ 
+def holdout(model, xFeat, y, x_test, test_y, testSize):
+    """
+    Split xFeat into random train and test based on the testSize and
+    return the model performance on the training and test set. 
+
+    Parameters
+    ----------
+    model : sktree.DecisionTreeClassifier
+        Decision tree model or KNN
+    xFeat : nd-array with shape n x d
+        Features of the dataset 
+    y : 1-array with shape n x 1
+        Labels of the dataset
+    x_test : m x d array
+        Original Split testing data features
+    test_y : m X 1 array
+        Original Split testing y
+    testSize : float
+        Portion of the dataset to serve as a holdout. 
+
+    Returns
+    -------
+    trainAuc : float
+        Average AUC of the model on the training dataset
+    testAuc : float
+        Average AUC of the model on the validation dataset
+    timeElapsed: float
+        Time it took to run this function
+    """
+    accuracy = 0
+    testAuc = 0
+    timeElapsed = 0
+    # TODO fill int
+    start = time.time()
+    #Sets the default training data if test size is 0
+    X_train = xFeat
+    y_train = y
+    #Splits the data based on the given paramter
+    if testSize != 0:
+        X_train, X_test, y_train, y_test = train_test_split(xFeat, y, test_size=testSize, random_state=0)
+    #Fits the model based newly split data
+    model.fit(X_train, y_train.values.ravel())
+    # print(X_train.size)
+    #Predicts using the inital testing data from the first split
+    y_true, y_pred = test_y, model.predict(x_test)
+    testAuc = metrics.roc_auc_score(y_true, y_pred)
+    accuracy = metrics.accuracy_score(y_true, y_pred)
+    end = time.time()
+    timeElapsed = end - start
+    
+    return accuracy, testAuc, timeElapsed
+
+
+def sktree_train_test(model, xTrain, yTrain, xTest, yTest):
+    """
+    Given a sklearn tree model, train the model using
+    the training dataset, and evaluate the model on the
+    test dataset.
+
+    Parameters
+    ----------
+    model : DecisionTreeClassifier object
+        An instance of the decision tree classifier 
+    xTrain : nd-array with shape nxd
+        Training data
+    yTrain : 1d array with shape n
+        Array of labels associated with training data
+    xTest : nd-array with shape mxd
+        Test data
+    yTest : 1d array with shape m
+        Array of labels associated with test data.
+
+    Returns
+    -------
+    trainAUC : float
+        The AUC of the model evaluated on the training data.
+    testAuc : float
+        The AUC of the model evaluated on the test data.
+    """
+    # fit the data to the training dataset
+    model.fit(xTrain, yTrain)
+    # predict training and testing probabilties
+    yHatTrain = model.predict_proba(xTrain)
+    yHatTest = model.predict_proba(xTest)
+    # calculate auc for training
+    fpr, tpr, thresholds = metrics.roc_curve(yTrain['label'],
+                                             yHatTrain[:, 1])
+    trainAuc = metrics.auc(fpr, tpr)
+    # calculate auc for test dataset
+    fpr, tpr, thresholds = metrics.roc_curve(yTest['label'],
+                                             yHatTest[:, 1])
+    testAuc = metrics.auc(fpr, tpr)
+    return trainAuc, testAuc
+
+def best_param_knn(xFeat, y, testSize):
+     #Splits data into data for paramater testing
+    X_train, X_test, y_train, y_test = train_test_split(xFeat, y, test_size=testSize, random_state=0)
+    
+    #Tests the newly split training data for the paramaters
+    clf = GridSearchCV(
+        KNeighborsClassifier(), 
+        [{'n_neighbors': range(1,200,1), 'metric': ['euclidean','manhattan']}], cv=10, scoring='roc_auc')
+    clf.fit(X_train, y_train.values.ravel())
+    y_true, y_pred = y_test, clf.predict(X_test)
+    print("Best parameters set found on development set:")
+    print()
+    print(clf.best_params_)
+    print()
+    print("Best score set found on development set:")
+    print()
+    print(clf.best_score_)
+   
+    print("Grid scores on development set:")
+    print()
+    means = clf.cv_results_['mean_test_score']
+    for mean, params in zip(means, clf.cv_results_['params']):
+        print("%0.3f for %r" % (mean, params))
+    
+
+def best_param_tree(xFeat, y, testSize):
+    #Splits data into data for paramater testing
+    X_train, X_test, y_train, y_test = train_test_split(xFeat, y, test_size=testSize, random_state=0)
+    
+    #Tests the newly split training data for the paramaters
+    tree_param = [{'criterion': ['entropy', 'gini'], 'max_depth': range(1, 50), 'min_samples_leaf': range(1, 50)}]
+    clf = GridSearchCV(
+        DecisionTreeClassifier(), 
+        tree_param, cv=10, scoring='roc_auc')
+    clf.fit(X_train, y_train.values.ravel())
+    
+    print("Grid scores on development set:")
+    print()
+    means = clf.cv_results_['mean_test_score']
+    for mean, params in zip(means, clf.cv_results_['params']):
+        print("%0.3f for %r" % (mean, params))
+    print()
+    print("Best parameters set found on development set:")
+    print()
+    print(clf.best_params_)
+    print("Best score set found on development set:")
+    print()
+    print(clf.best_score_)
+    
+
+
+def main():
+    # set up the program to take in arguments from the command line
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--xTrain",
+                        default="q4xTrain.csv",
+                        help="filename for features of the training data")
+    parser.add_argument("--yTrain",
+                        default="q4yTrain.csv",
+                        help="filename for labels associated with training data")
+    parser.add_argument("--xTest",
+                        default="q4xTest.csv",
+                        help="filename for features of the test data")
+    parser.add_argument("--yTest",
+                        default="q4yTest.csv",
+                        help="filename for labels associated with the test data")
+
+    args = parser.parse_args()
+    # load the train and test data
+    xTrain = pd.read_csv(args.xTrain)
+    yTrain = pd.read_csv(args.yTrain)
+    xTest = pd.read_csv(args.xTest)
+    yTest = pd.read_csv(args.yTest)
+    # create the decision tree classifier
+    dtClass = DecisionTreeClassifier(max_depth=7,
+                                     min_samples_leaf=47, criterion = "gini")
+    knn = KNeighborsClassifier(n_neighbors=8, metric = "manhattan")
+    # use the holdout set with all of the training data for knn
+    accuracy1, aucVal1, time1 = holdout(knn, xTrain, yTrain, xTest, yTest, 0)
+    # use the holdout set with 95% of the training data for knn
+    accuracy2, aucVal2, time2 = holdout(knn, xTrain, yTrain, xTest, yTest, 0.05)
+    # use the holdout set with 90% of the training data for knn
+    accuracy3, aucVal3, time3 = holdout(knn, xTrain, yTrain, xTest, yTest, 0.10)
+    # use the holdout set with 80% of the training data for knn
+    accuracy4, aucVal4, time4 = holdout(knn, xTrain, yTrain, xTest, yTest, 0.20)
+    # use the holdout set with all of the training data for dt
+    accuracy5, aucVal5, time5 = holdout(dtClass, xTrain, yTrain, xTest, yTest, 0)
+    # use the holdout set with 95% of the training data for dt
+    accuracy6, aucVal6, time6 = holdout(dtClass, xTrain, yTrain, xTest, yTest, 0.05)
+    # use the holdout set with 90% of the training data for dt
+    accuracy7, aucVal7, time7 = holdout(dtClass, xTrain, yTrain, xTest, yTest, 0.10)
+    # use the holdout set with 80% of the training data for dt
+    accuracy8, aucVal8, time8 = holdout(dtClass, xTrain, yTrain, xTest, yTest, 0.20)
+
+    
+    # train it using all the data and assess the true value
+    trainAuc, testAuc = sktree_train_test(dtClass, xTrain, yTrain, xTest, yTest)
+    perfDF = pd.DataFrame([['100% knn Training', accuracy1, aucVal1, time1],
+                           ['95% knn Training', accuracy2, aucVal2, time2],
+                           ['90% knn Training', accuracy3, aucVal3, time3],
+                           ['80% knn Training', accuracy4, aucVal4, time4],
+                           ['100% Tree Training', accuracy5, aucVal5, time5],
+                           ['95% Tree Training', accuracy6, aucVal6, time6],
+                           ['90% Tree Training', accuracy7, aucVal7, time7],
+                           ['80% Tree Training', accuracy8, aucVal8, time8],
+                           ['True Test', trainAuc, testAuc, 0]],
+                           columns=['Strategy', 'Accuracy', 'ValAUC', 'Time'])
+    print(perfDF)
+    best_param_knn(xTrain, yTrain, 0.30)
+    best_param_tree(xTrain, yTrain, 0.30)
+    
+
+
+if __name__ == "__main__":
+    main()
