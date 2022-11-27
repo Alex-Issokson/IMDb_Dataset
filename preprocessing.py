@@ -117,7 +117,7 @@ def main():
     xTestTr.to_csv("prepro_xtest.csv", index=False)
     
     trainPca = pd.DataFrame(X_pca)
-    testPca = pd.DataFrame(X_pca)
+    testPca = pd.DataFrame(testPca)
     trainPca.to_csv("pca_xtrain.csv", index=False)
     testPca.to_csv("pca_xtest.csv", index=False)
     
