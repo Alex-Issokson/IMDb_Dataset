@@ -48,7 +48,7 @@ def main():
     #     'gamma': range(1,9,3),
     #     'reg_alpha' : range(40,180,20),
     #     'reg_lambda' :  np.linspace(0,1,11),
-    #     'colsample_bytree' : np.lin(space.5,1,6),
+    #     'colsample_bytree' : np.linspace (.5,1,6),
     #     'min_child_weight' : range(0, 10, 1),
     #     'n_estimators': [180],
     # }

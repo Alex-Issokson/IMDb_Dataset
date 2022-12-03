@@ -23,7 +23,11 @@ def calculate_graph_Pearson(xFeat, y):
         relevant_features = cor_target[cor_target>0.5]
         print(relevant_features)
         print("")
-        
+    
+    cor_target = abs(Pearson["Rating"])
+    relevant_features = cor_target
+    print(relevant_features)
+
 def select_features(df):
     """
     Select the features to keep
